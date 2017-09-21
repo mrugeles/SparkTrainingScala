@@ -14,23 +14,12 @@ class SparkSessionBatch {
       .master("local[*]")
       .getOrCreate()
 
-    val struct =
-      StructType(
-        StructField("a", IntegerType, true) ::
-          StructField("b", LongType, false) ::
-          StructField("c", BooleanType, false) :: Nil)
+    val events = spark.read.option("header", "true")
+      .csv(getClass.getResource("/logs.txt").getPath)
 
-    val data = spark.read.schema(struct).load("s3://")
+    val grouped = events.groupBy("path").count().orderBy(desc("count"))
 
-    val events= spark.read.csv(getClass.getResource("/logs.txt").getPath)
-      .withColumnRenamed("_c0", "ip")
-      .withColumnRenamed("_c1", "timestamp")
-      .withColumnRenamed("_c2", "guid")
-      .withColumnRenamed("_c3", "url")
-    import spark.implicits._
-    val mapped = events.groupBy($"guid").count().repartition($"guid")
-    mapped.sort(desc("count")).show(10)
-    //mapped.show()
+    grouped.show(10)
   }
 
 
